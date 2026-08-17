@@ -82,6 +82,21 @@ export default function UploadBill() {
                 throw new Error(data.detail || data.error || data.message || "Extraction failed");
             }
 
+            // Save to localStorage as a fallback for when MongoDB is offline
+            if (data.history && data.history.length > 0) {
+                localStorage.setItem("fallbackHistory", JSON.stringify(data.history));
+            } else if (data.usage && data.usage.currUnits) {
+                // If no history array, just save the current month
+                const currentMonth = {
+                    date: data.consumer?.billDate || new Date().toISOString(),
+                    units: data.usage.currUnits,
+                    amount: data.usage.currAmount || "0"
+                };
+                const existing = JSON.parse(localStorage.getItem("fallbackHistory") || "[]");
+                existing.unshift(currentMonth);
+                localStorage.setItem("fallbackHistory", JSON.stringify(existing));
+            }
+
             setExtracted(data);
             setProcessing(false);
         } catch (err) {

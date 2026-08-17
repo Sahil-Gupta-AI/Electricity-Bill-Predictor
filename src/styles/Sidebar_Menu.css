@@ -1,93 +1,143 @@
 /* ===== SIDEBAR ===== */
 
-.Sidebar{
-  width:236px;
-  background:#0f172a;
-  color:white;
-  height:100vh;
-  position:sticky;
-  top:0;
-  flex-shrink:0;
-  transition:0.3s;
-  overflow-y:auto;
+.Sidebar {
+  width: 280px;
+  background: #0f172a;
+  color: white;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
+/* ===== HEADER / LOGO ===== */
 
-.sidebar-header{
-  height:100px;
-  display:flex;
-  align-items:center;
-  padding:0 5px;
-  border-bottom:1px solid rgba(255,255,255,.1);
+.sidebar-header {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.logo-pic{
-  /* height:auto;
-  width:auto; */
-
+.logo-pic {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  max-height: 90px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
 }
 
-.Sidebar ul{
-  padding:20px 10px;
+/* ===== NAV LIST ===== */
+
+.Sidebar ul {
+  padding: 24px 14px;
+  flex: 1;
 }
 
-.Sidebar li{
-  margin-bottom:8px;
+.Sidebar li {
+  margin-bottom: 6px;
 }
 
-.Sidebar li a{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:14px 16px;
-  border-radius:10px;
-  transition:.3s;
+.Sidebar li a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  transition: background 0.25s ease;
+  white-space: nowrap;
 }
 
-.Sidebar li a:hover{
-  background:#4f46e5;
+.Sidebar li a:hover {
+  background: #4f46e5;
+  color: #fff;
 }
 
-.Sidebar.collapsed ul li a{
-    justify-content:center;
+.Sidebar li a.active {
+  background: #4f46e5;
+  color: #fff;
 }
 
-.Sidebar.collapsed .logo-pic{
-    width:40px;
-    height:auto;
+.logo-button {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* ===== ANIMATE NAV LABELS ===== */
 
-.logo-button{
-  width:20px;
-  height:20px;
+.Sidebar li a span:last-child {
+  display: inline-block;
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.Sidebar.collapsed li a span:last-child {
+  opacity: 0;
+  transform: translateX(-8px);
+  width: 0;
+  pointer-events: none;
+}
+
+/* ===== ANIMATE LOGO ===== */
+
+.sidebar-header .logo-pic {
+  opacity: 1;
+  max-width: 220px;
+  transform: translateX(0);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-header .logo-pic.logo-hidden {
+  opacity: 0;
+  max-width: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
 }
 
 /* ===== COLLAPSED SIDEBAR ===== */
 
-.Sidebar.collapsed{
-  width:80px;
+.Sidebar.collapsed {
+  width: 72px;
 }
 
-.Sidebar.collapsed .menu-text{
-  display:none;
+.Sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 0;
 }
 
-.Sidebar.collapsed .sidebar-header{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding:0;
+.Sidebar.collapsed ul li a {
+  justify-content: center;
+  padding: 12px 0;
+  gap: 0;
 }
 
-.Sidebar.collapsed .logo-pic{
-  width:55px;
-  height:auto;
+.Sidebar.collapsed li a {
+  justify-content: center;
 }
 
-.Sidebar.collapsed li a{
-  justify-content:center;
-}
+/* ===== MOBILE ===== */
 
 .mobile-sidebar-backdrop {
   display: none;
@@ -100,19 +150,20 @@
     top: 0;
     height: 100vh;
     z-index: 1000;
-    box-shadow: 5px 0 25px rgba(0,0,0,0.15);
+    box-shadow: 5px 0 25px rgba(0, 0, 0, 0.25);
   }
-  
+
   .Sidebar.collapsed {
-    left: -236px;
-    width: 236px;
+    left: -280px;
+    width: 280px;
   }
-  
+
   .Sidebar.collapsed .sidebar-header {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
+    padding: 0 20px;
   }
-  
+
   .mobile-sidebar-backdrop {
     display: block;
     position: fixed;

@@ -122,8 +122,23 @@ export default function ConsumptionHistory() {
                     headers: token ? { "Authorization": `Bearer ${token}` } : {}
                 });
                 const data = await res.json();
-                if (res.ok) {
+                
+                // Fallback to localStorage if MongoDB is offline and returns []
+                const fallbackStr = localStorage.getItem("fallbackHistory");
+                if (res.ok && data.length > 0) {
                     setBills(data);
+                } else if (fallbackStr) {
+                    try {
+                        const fallbackData = JSON.parse(fallbackStr);
+                        // Map local format to match expected format
+                        const mappedFallback = fallbackData.map(item => ({
+                            billDate: item.date,
+                            units: parseFloat(String(item.units).replace(/[^\d\.]/g, "")) || 0
+                        }));
+                        setBills(mappedFallback);
+                    } catch (e) {
+                        console.error("Failed to parse fallback history");
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching history:", err);

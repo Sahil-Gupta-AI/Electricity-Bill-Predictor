@@ -24,7 +24,7 @@ import { ResponsiveContainer } from "recharts";
 import { Area } from "recharts";
 import { AreaChart } from "recharts";
 
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PREV_VARIATIONS = [0.78, 0.88, 1.06, 0.93];
 const MAX_BILL = 7000;
 
@@ -126,7 +126,7 @@ export default function home() {
         };
         fetchHistoryBills();
     }, [amount]);
- 
+
     useEffect(() => {
         if (historyBills.length > 0 && !amount) {
             const mapped = historyBills.map(b => {
@@ -137,14 +137,14 @@ export default function home() {
                     dateObj: parsed ? dayjs(parsed, "MMM YYYY") : null
                 };
             }).filter(b => b.dateObj && b.dateObj.isValid());
-            
+
             if (mapped.length > 0) {
                 mapped.sort((a, b) => b.dateObj.diff(a.dateObj));
                 const latestBill = mapped[0];
                 setAmount(String(latestBill.amount));
                 setUnit(String(latestBill.units));
                 setMonth(latestBill.parsedDate);
-                
+
                 if (latestBill.parsedDate) {
                     const nextMonthName = dayjs(latestBill.parsedDate, "MMM YYYY")
                         .add(1, "month")
@@ -176,7 +176,7 @@ export default function home() {
                         setPredictUnit(latest.predictUnit !== undefined ? String(latest.predictUnit) : "");
                         setPredictAmount(latest.predictAmount !== undefined ? String(latest.predictAmount) : "");
                         setMonth(latest.month || "");
-                        
+
                         if (latest.month) {
                             const nextMonthName = dayjs(latest.month, "MMM YYYY")
                                 .add(1, "month")
@@ -233,15 +233,15 @@ export default function home() {
             const currentBill = parseFloat(amount);
             const currentMonthStr = month.split(" ")[0];
             const targetDate = dayjs(month, "MMM YYYY");
-            
+
             points = points.filter(item => !item.dateObj.isSame(targetDate, 'month'));
-            
+
             points.push({
                 dateObj: targetDate,
                 month: currentMonthStr,
                 bill: currentBill
             });
-            
+
             points.sort((a, b) => a.dateObj.diff(b.dateObj));
         }
 
@@ -249,15 +249,15 @@ export default function home() {
             const predictedBill = parseFloat(predictAmount);
             const predictedMonthStr = nextMonth.split(" ")[0];
             const predictedDate = dayjs(nextMonth, "MMM YYYY");
-            
+
             points = points.filter(item => !item.dateObj.isSame(predictedDate, 'month'));
-            
+
             points.push({
                 dateObj: predictedDate,
                 month: predictedMonthStr,
                 bill: predictedBill
             });
-            
+
             points.sort((a, b) => a.dateObj.diff(b.dateObj));
         }
 
@@ -266,7 +266,7 @@ export default function home() {
             const firstPoint = points[0];
             const baseBill = firstPoint.bill;
             const firstDate = firstPoint.dateObj;
-            
+
             const padded = [];
             for (let i = needed; i > 0; i--) {
                 const prevDate = firstDate.subtract(i, "month");
@@ -484,7 +484,7 @@ export default function home() {
                                         </div>
                                     </div>
                                     <hr />
-                                    <button className="view-more-btn">View More Tips →</button>
+                                    <button className="view-more-btn" onClick={() => navigate("/tips")}>View More Tips →</button>
                                 </div>
                             </div>
                         </div>

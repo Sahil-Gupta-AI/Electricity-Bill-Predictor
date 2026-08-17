@@ -18,7 +18,7 @@ export default function Sidebar_Menu({ collapsed, setCollapsed }) {
     return (
         <aside className={`Sidebar ${collapsed ? "collapsed" : ""}`}>
             <div className="sidebar-header">
-                <img className="logo-pic" src="./logo.png" />
+                <img className={`logo-pic ${collapsed ? "logo-hidden" : ""}`} src="./logo.png" />
             </div>
             <ul>
                 {navItems.map(({ to, icon, label }) => (
@@ -27,7 +27,7 @@ export default function Sidebar_Menu({ collapsed, setCollapsed }) {
                             to={to}
                             className={`sidebar-link ${location.pathname === to ? "active" : ""}`}>
                             <span className="logo-button">{icon}</span>
-                            {!collapsed && <span>{label}</span>}
+                            <span>{label}</span>
                         </Link>
                     </li>
                 ))}
