@@ -8,6 +8,15 @@ from ocr_pipeline.layout.anchor_finder import SpatialAnchorEngine
 from ocr_pipeline.layout.tax_slab_parser import TaxAndSlabParser
 from ocr_pipeline.graph.bar_chart_extractor import GraphExtractor
 
+def safe_float(val_str, default=0.0):
+    if not val_str or val_str == "—":
+        return default
+    try:
+        cleaned = re.sub(r'[^\d\.]', '', str(val_str))
+        return float(cleaned) if cleaned and cleaned != "." else default
+    except Exception:
+        return default
+
 @ParserRegistry.register
 class TorrentParser(BaseProviderParser):
 
@@ -47,7 +56,7 @@ class TorrentParser(BaseProviderParser):
             if name_m:
                 cand = name_m.group(1).strip()
                 cand = re.split(r'\b(?:Mobile|Email|Customer|Tariff|Address|Bill|Flat|Grd|Flr|Date)\b', cand, flags=re.IGNORECASE)[0].strip()
-                if len(cand) >= 3 and not any(w in cand.lower() for w in ["torrent", "power", "limited", "company", "bhiwandi"]):
+                if not any(w in cand.lower() for w in ["torrent", "power", "limited", "company", "bhiwandi"]):
                     c_name = cand
 
         if c_name == "—":
@@ -70,10 +79,21 @@ class TorrentParser(BaseProviderParser):
         ])
 
         # 4. Bill Date & Due Date
-        bill_date = anchor.find_first_match([
-            r'(?:Bill\s*Date|Date\s*of\s*Bill|देयक\s*दिनांक|बिल\s*दिनांक|eae\s*festa)\s*[:\-]?\s*(\d{1,2}[\/\-\.\s][A-Za-z0-9]{3,10}[\/\-\.\s]\d{2,4})',
-            r'\b(\d{1,2}\-[A-Za-z]{3}\-\d{2,4})\b'
-        ])
+        bill_date = "—"
+        m_bfor = re.search(r'Bill\s*of\s*Supply\s*For\s*[:\-]?\s*([A-Za-z]{3}\-\d{4}|\d{2}\-[A-Za-z]{3}\-\d{2,4})', text, re.IGNORECASE)
+        if m_bfor:
+            bill_date = m_bfor.group(1).strip()
+
+        if bill_date == "—":
+            m_bdate = re.search(r'Bill\s*Date\s*[:\-]?\s*(\d{1,2}[\/\-\.\s][A-Za-z0-9]{3,10}[\/\-\.\s]\d{2,4})', text, re.IGNORECASE)
+            if m_bdate:
+                bill_date = m_bdate.group(1).strip()
+
+        if bill_date == "—":
+            bill_date = anchor.find_first_match([
+                r'देयक\s*दिनांक\s*[:\-]?\s*(\d{1,2}[\/\-\.\s][A-Za-z0-9]{3,10}[\/\-\.\s]\d{2,4})',
+                r'\b(\d{1,2}\-[A-Za-z]{3}\-\d{2,4})\b'
+            ])
 
         due_date = anchor.find_first_match([
             r'(?:Due\s*Date|देय\s*दिनांक|अंतिम\s*देय\s*दिनांक|अविमतारीख|ea\s*fente)\s*[:\-]?\s*(\d{1,2}[\/\-\.\s][A-Za-z0-9]{3,10}[\/\-\.\s]\d{2,4})',
@@ -95,15 +115,12 @@ class TorrentParser(BaseProviderParser):
         if not prev_amt_m:
             prev_amt_m = re.search(r'पावतीची\s*रक्कम\s*([0-9,]+(?:\.[0-9]+)?)', text)
         if prev_amt_m:
-            v = float(re.sub(r'[^\d\.]', '', prev_amt_m.group(1)))
+            v = safe_float(prev_amt_m.group(1))
             if v >= 100:
                 prev_amount = f"₹{v:,.0f}" if v % 1 == 0 else f"₹{v:,.2f}"
 
         if prev_amount == "—" and ("पावतीची" in text or "610.00" in text):
             prev_amount = "₹610"
-
-
-
 
         # 6. Meter Readings & Current Units
         curr_units = "—"
@@ -149,7 +166,7 @@ class TorrentParser(BaseProviderParser):
         )
 
         # 8. Bill Summary calculation
-        u_num = float(re.sub(r'[^\d\.]', '', curr_units)) if curr_units != "—" else 0.0
+        u_num = safe_float(curr_units)
 
         energy_ext = anchor.find_amount([r'Energy\s*Charges?[^\n\d]*([0-9,]+(?:\.[0-9]+)?)\b', r'वीज\s*आकार[^\n\d]*([0-9,]+(?:\.[0-9]+)?)\b'])
         fixed_ext = anchor.find_amount([r'Fixed\s*Charges?[^\n\d]*([0-9,]+(?:\.[0-9]+)?)\b', r'स्थिर\s*आकार[^\n\d]*([0-9,]+(?:\.[0-9]+)?)\b'], default="₹140.00")
@@ -171,10 +188,10 @@ class TorrentParser(BaseProviderParser):
             if wheeling_ext == "—":
                 wheeling_ext = f"₹{round(u_num * 1.60, 2):.2f}"
             if duty_ext == "—":
-                e_val = float(re.sub(r'[^\d\.]', '', energy_ext)) if energy_ext != "—" else u_num * 3.96
-                f_val = float(re.sub(r'[^\d\.]', '', fixed_ext)) if fixed_ext != "—" else 140.0
-                fac_val = float(re.sub(r'[^\d\.]', '', fac_ext)) if fac_ext != "—" else u_num * 0.15
-                w_val = float(re.sub(r'[^\d\.]', '', wheeling_ext)) if wheeling_ext != "—" else u_num * 1.60
+                e_val = safe_float(energy_ext, u_num * 3.96)
+                f_val = safe_float(fixed_ext, 140.0)
+                fac_val = safe_float(fac_ext, u_num * 0.15)
+                w_val = safe_float(wheeling_ext, u_num * 1.60)
                 duty_ext = f"₹{round((e_val + f_val + fac_val + w_val) * 0.16, 2):.2f}"
 
         summary = BillSummary(

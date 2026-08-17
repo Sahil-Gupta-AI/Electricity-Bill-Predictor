@@ -69,6 +69,8 @@ const authOptional = (req, res, next) => {
     }
 };
 
+const mongoose = require("mongoose");
+
 router.post("/predict", authOptional, async (req, res) => {
     try {
         console.log("Forwarding to Flask:", req.body);
@@ -77,40 +79,46 @@ router.post("/predict", authOptional, async (req, res) => {
             "http://127.0.0.1:5001/predict",
             req.body
         );
-        console.log("Flask replied");
-        console.log(response.data);
+        console.log("Flask replied:", response.data);
 
-        // Save prediction to database if user is logged in
+        // Save prediction to database if user is logged in and DB/ObjectId is valid
         if (req.user && req.user.id) {
-            const prediction = new Prediction({
-                user: req.user.id,
-                prediction_type: req.body.prediction_type || "history",
-                month: req.body.month,
-                inputUnit: parseFloat(req.body.unit) || 0,
-                inputAmount: parseFloat(req.body.amount) || 0,
-                predictUnit: parseFloat(response.data.predictUnit) || 0,
-                predictAmount: parseFloat(response.data.predictAmount) || 0,
-                fixedCharge: req.body.fixedCharge || "",
-                energyRate: req.body.energyRate || "",
-                fac: req.body.fac || "",
-                wheeling: req.body.wheeling || "",
-                duty: req.body.duty || ""
-            });
+            try {
+                if (mongoose.Types.ObjectId.isValid(req.user.id)) {
+                    const prediction = new Prediction({
+                        user: req.user.id,
+                        prediction_type: req.body.prediction_type || "history",
+                        month: req.body.month,
+                        inputUnit: parseFloat(req.body.unit) || 0,
+                        inputAmount: parseFloat(req.body.amount) || 0,
+                        predictUnit: parseFloat(response.data.predictUnit) || 0,
+                        predictAmount: parseFloat(response.data.predictAmount) || 0,
+                        fixedCharge: req.body.fixedCharge || "",
+                        energyRate: req.body.energyRate || "",
+                        fac: req.body.fac || "",
+                        wheeling: req.body.wheeling || "",
+                        duty: req.body.duty || ""
+                    });
 
-            await prediction.save();
-            console.log(`Saved prediction in MongoDB for user: ${req.user.email || req.user.id}`);
+                    await prediction.save();
+                    console.log(`Saved prediction in MongoDB for user: ${req.user.email || req.user.id}`);
+                } else {
+                    console.log("Skipped DB save: Non-ObjectId in-memory user session");
+                }
+            } catch (dbErr) {
+                console.warn("MongoDB operation warning (non-fatal):", dbErr.message);
+            }
         } else {
             console.log("Guest prediction processed successfully");
         }
 
-        res.status(200).json(response.data);
-        console.log("Node reached");
-        console.log(req.body);
+        return res.status(200).json(response.data);
 
     } catch (error) {
-        console.log(error);
-        res.status(500).json({
-            message: "Prediction failed"
+        console.error("Prediction error:", error.message);
+        return res.status(500).json({
+            message: "Prediction failed",
+            detail: error.message
         });
     }
 });
@@ -130,10 +138,10 @@ router.get("/companies/tariff", async (req, res) => {
                 duty: p.duty
             };
         });
-        res.status(200).json(tariffMap);
+        return res.status(200).json(tariffMap);
     } catch (error) {
-        console.error("Failed to fetch company tariffs:", error);
-        res.status(500).json({ message: "Failed to fetch company tariffs" });
+        console.warn("Failed to fetch company tariffs (returning default empty map):", error.message);
+        return res.status(200).json({});
     }
 });
 

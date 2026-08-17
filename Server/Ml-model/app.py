@@ -354,7 +354,16 @@ def predict():
                 duty_pct = 16.0
         
         default_amount = calculate_default_tariff(provider, predictUnit)
-        if rate > 0:
+        default_prev = calculate_default_tariff(provider, units) if units > 0 else None
+
+        if default_amount is not None and default_amount > 0:
+            if units > 0 and amount > 0 and default_prev and default_prev > 0:
+                scaling_factor = amount / default_prev
+                scaling_factor = max(0.60, min(3.00, scaling_factor))
+                predictAmount = round(default_amount * scaling_factor)
+            else:
+                predictAmount = default_amount
+        elif rate > 0:
             energy_charges = predictUnit * rate
             fac_charges = predictUnit * fac_rate
             wheeling_charges = predictUnit * wheeling_rate
@@ -372,23 +381,12 @@ def predict():
                 
                 if tariff_prev > 0:
                     scaling_factor = amount / tariff_prev
-                    scaling_factor = max(0.75, min(1.50, scaling_factor))
+                    scaling_factor = max(0.60, min(3.00, scaling_factor))
                     predictAmount = round(tariff_pred * scaling_factor)
                 else:
                     predictAmount = round(tariff_pred)
             else:
                 predictAmount = round(tariff_pred)
-        elif default_amount is not None:
-            if units > 0 and amount > 0:
-                default_prev = calculate_default_tariff(provider, units)
-                if default_prev is not None and default_prev > 0:
-                    scaling_factor = amount / default_prev
-                    scaling_factor = max(0.75, min(1.50, scaling_factor))
-                    predictAmount = round(default_amount * scaling_factor)
-                else:
-                    predictAmount = default_amount
-            else:
-                predictAmount = default_amount
         else:
             if units > 0:
                 predictAmount = round(amount * (predictUnit / units))
@@ -557,7 +555,16 @@ def predict():
                 duty_pct = 16.0
  
         default_amount = calculate_default_tariff(provider, predictUnit)
-        if rate > 0:
+        default_prev = calculate_default_tariff(provider, units) if units > 0 else None
+
+        if default_amount is not None and default_amount > 0:
+            if units > 0 and amount > 0 and default_prev and default_prev > 0:
+                scaling_factor = amount / default_prev
+                scaling_factor = max(0.60, min(3.00, scaling_factor))
+                predictAmount = round(default_amount * scaling_factor)
+            else:
+                predictAmount = default_amount
+        elif rate > 0:
             energy_charges = predictUnit * rate
             fac_charges = predictUnit * fac_rate
             wheeling_charges = predictUnit * wheeling_rate
@@ -575,23 +582,12 @@ def predict():
                 
                 if tariff_prev > 0:
                     scaling_factor = amount / tariff_prev
-                    scaling_factor = max(0.75, min(1.50, scaling_factor))
+                    scaling_factor = max(0.60, min(3.00, scaling_factor))
                     predictAmount = round(tariff_pred * scaling_factor)
                 else:
                     predictAmount = round(tariff_pred)
             else:
                 predictAmount = round(tariff_pred)
-        elif default_amount is not None:
-            if units > 0 and amount > 0:
-                default_prev = calculate_default_tariff(provider, units)
-                if default_prev is not None and default_prev > 0:
-                    scaling_factor = amount / default_prev
-                    scaling_factor = max(0.75, min(1.50, scaling_factor))
-                    predictAmount = round(default_amount * scaling_factor)
-                else:
-                    predictAmount = default_amount
-            else:
-                predictAmount = default_amount
         else:
             if units > 0:
                 predictAmount = round(amount * (predictUnit / units))
@@ -1771,40 +1767,57 @@ def extract_graph_history_hybrid(page_image, bill_date_str, company_key, bill_te
 
 def merge_history(payment_history, graph_history):
     def get_month_key(date_str):
-        m = re.search(r'\b([A-Za-z]{3,9})[-\s,]*(\d{4})\b', date_str)
+        if not date_str or not isinstance(date_str, str):
+            return None
+        m = re.search(r'\b([A-Za-z]{3,9})[-\s,]*(\d{2,4})\b', date_str)
         if m:
-            return f"{m.group(1)[:3].lower()}-{m.group(2)}"
+            m_name = m.group(1)[:3].lower()
+            yr = m.group(2)
+            if len(yr) == 2:
+                yr = "20" + yr
+            return f"{m_name}-{yr}"
         return None
 
     merged = {}
     
-    for item in graph_history:
-        m_key = get_month_key(item["date"])
-        if m_key:
-            merged[m_key] = {
-                "date": item["date"],
-                "units": item.get("units"),
-                "amount": item.get("amount")
-            }
+    # 1. Primary history from provider parsers
+    if isinstance(payment_history, list):
+        for item in payment_history:
+            if isinstance(item, dict):
+                m_key = get_month_key(item.get("date"))
+                if m_key:
+                    merged[m_key] = dict(item)
+            elif hasattr(item, "__dict__"):
+                d = getattr(item, "to_dict", lambda: item.__dict__)()
+                m_key = get_month_key(d.get("date"))
+                if m_key:
+                    merged[m_key] = d
             
-    for item in payment_history:
-        m_key = get_month_key(item["date"])
-        if m_key:
-            if m_key in merged:
-                merged[m_key]["date"] = item["date"]
-                merged[m_key]["amount"] = item["amount"]
-                if "units" in item and item["units"] and item["units"] != "—":
-                    merged[m_key]["units"] = item["units"]
-            else:
-                merged[m_key] = item
-                
+    # 2. Supplement missing fields from graph_history without overwriting valid data
+    if isinstance(graph_history, list):
+        for item in graph_history:
+            if isinstance(item, dict):
+                m_key = get_month_key(item.get("date"))
+                if m_key:
+                    if m_key not in merged:
+                        merged[m_key] = dict(item)
+                    else:
+                        if (not merged[m_key].get("amount") or merged[m_key].get("amount") == "—") and item.get("amount") and item.get("amount") != "—":
+                            merged[m_key]["amount"] = item["amount"]
+                        if (not merged[m_key].get("units") or merged[m_key].get("units") in ["—", "0 KWh", "1 KWh"]) and item.get("units") and item.get("units") not in ["—", "0 KWh", "1 KWh"]:
+                            merged[m_key]["units"] = item["units"]
+
     from datetime import datetime
     def sort_key(item):
-        date_str = item["date"]
-        for fmt in ["%d-%b-%Y", "%b-%Y", "%d-%b-%y"]:
+        if not isinstance(item, dict):
+            return datetime.min
+        date_str = str(item.get("date") or "").replace("/", "-").replace(" ", "-").strip()
+        if not date_str or date_str == "—":
+            return datetime.min
+        for fmt in ["%d-%b-%Y", "%b-%Y", "%d-%b-%y", "%Y-%m-%d", "%d-%m-%Y"]:
             try:
-                return datetime.strptime(date_str.replace("/", "-").replace(" ", "-"), fmt)
-            except ValueError:
+                return datetime.strptime(date_str, fmt)
+            except (ValueError, TypeError):
                 continue
         return datetime.min
         
@@ -1831,18 +1844,27 @@ def extract():
             filename_lower = filename.lower()
             pages = None
             if filename_lower.endswith(".pdf"):
-                from pdf2image import convert_from_bytes
-                poppler_paths = [
-                    r"C:\Program Files\poppler\bin",
-                    r"C:\poppler\bin",
-                    os.path.join(os.path.dirname(__file__), "poppler", "bin"),
-                ]
-                poppler_bin = None
-                for p in poppler_paths:
-                    if os.path.exists(p):
-                        poppler_bin = p
-                        break
-                pages = convert_from_bytes(file_bytes, dpi=300, poppler_path=poppler_bin) if poppler_bin else convert_from_bytes(file_bytes, dpi=300)
+                try:
+                    import fitz
+                    doc = fitz.open(stream=file_bytes, filetype="pdf")
+                    pages = []
+                    for page in doc:
+                        pix = page.get_pixmap(dpi=300)
+                        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                        pages.append(img)
+                except Exception:
+                    from pdf2image import convert_from_bytes
+                    poppler_paths = [
+                        r"C:\Program Files\poppler\bin",
+                        r"C:\poppler\bin",
+                        os.path.join(os.path.dirname(__file__), "poppler", "bin"),
+                    ]
+                    poppler_bin = None
+                    for p in poppler_paths:
+                        if os.path.exists(p):
+                            poppler_bin = p
+                            break
+                    pages = convert_from_bytes(file_bytes, dpi=300, poppler_path=poppler_bin) if poppler_bin else convert_from_bytes(file_bytes, dpi=300)
             elif any(filename_lower.endswith(ext) for ext in [".jpeg", ".jpg", ".png"]):
                 pages = [Image.open(io.BytesIO(file_bytes)).convert("RGB")]
 
@@ -1855,23 +1877,23 @@ def extract():
                     elif "adani" in c_name: company_key = "adani"
                     elif "best" in c_name: company_key = "best"
 
-                    bill_date_str = parsed.get("consumer", {}).get("billDate", "")
-                    if company_key == "tata" and ("cano" in parsed.get("rawText", "").lower() or "delhi" in parsed.get("rawText", "").lower()):
-                        # Tata Power DDL layout has no bar chart history
-                        pass
-                    else:
-                        graph_hist = extract_graph_history_hybrid(pages[0], bill_date_str, company_key, parsed.get("rawText", ""))
-                        if graph_hist:
-                            existing = parsed.get("history") or []
-                            parsed["history"] = merge_history(existing, graph_hist)
+                    existing = parsed.get("history") or []
+                    if not existing or len(existing) == 0:
+                        if not (company_key == "tata" and ("cano" in parsed.get("rawText", "").lower() or "delhi" in parsed.get("rawText", "").lower())):
+                            graph_hist = extract_graph_history_hybrid(pages[0], bill_date_str, company_key, parsed.get("rawText", ""))
+                            if graph_hist:
+                                parsed["history"] = merge_history(existing, graph_hist)
         except Exception as graph_err:
             print("[GRAPH ENRICHMENT] Skipped or failed:", graph_err)
 
         return jsonify(parsed)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print("Extract error:", repr(e))
         return jsonify({"error": "Extraction failed", "detail": str(e)}), 500
+
 
 
 users = []  # simple in-memory store for registered users
