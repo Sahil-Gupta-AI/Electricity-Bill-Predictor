@@ -123,25 +123,14 @@ export default function ConsumptionHistory() {
                 });
                 const data = await res.json();
                 
-                // Fallback to localStorage if MongoDB is offline and returns []
-                const fallbackStr = localStorage.getItem("fallbackHistory");
-                if (res.ok && data.length > 0) {
+                if (res.ok && Array.isArray(data)) {
                     setBills(data);
-                } else if (fallbackStr) {
-                    try {
-                        const fallbackData = JSON.parse(fallbackStr);
-                        // Map local format to match expected format
-                        const mappedFallback = fallbackData.map(item => ({
-                            billDate: item.date,
-                            units: parseFloat(String(item.units).replace(/[^\d\.]/g, "")) || 0
-                        }));
-                        setBills(mappedFallback);
-                    } catch (e) {
-                        console.error("Failed to parse fallback history");
-                    }
+                } else {
+                    setBills([]);
                 }
             } catch (err) {
                 console.error("Error fetching history:", err);
+                setBills([]);
             } finally {
                 setLoading(false);
             }
@@ -149,8 +138,7 @@ export default function ConsumptionHistory() {
         fetchHistory();
     }, []);
 
-    const isDemo = bills.length === 0;
-    const consumptionData = isDemo ? mockData : bills.map(b => {
+    const consumptionData = bills.map(b => {
         const monthName = parseMonthName(b.billDate);
         return {
             month: monthName,
@@ -172,6 +160,7 @@ export default function ConsumptionHistory() {
 
     function handleLogout() {
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
         navigate("/login");
     }
 
@@ -201,40 +190,27 @@ export default function ConsumptionHistory() {
                 </header>
 
                 <main className="content">
-                    <h2>Consumption History</h2>
-
-                    {isDemo && (
-                        <div style={{
-                            background: "#faf8ff",
-                            border: "1.5px dashed #c4b5fd",
-                            borderRadius: "12px",
-                            padding: "16px 20px",
-                            color: "#5b3df5",
-                            marginBottom: "24px",
-                            fontSize: "14.5px",
-                            fontWeight: "500",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                        }}>
-                            <span>Viewing demo data. Upload your first bill to see your actual consumption history dashboard!</span>
-                            <button 
-                                onClick={() => navigate("/uploadbill")} 
-                                style={{
-                                    backgroundColor: "#6D4AFF",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    padding: "8px 16px",
-                                    cursor: "pointer",
-                                    fontWeight: "600",
-                                    transition: "all 0.2s"
-                                }}
-                            >
-                                Upload Bill
-                            </button>
-                        </div>
-                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                        <h2 style={{ margin: 0 }}>Consumption History</h2>
+                        <button
+                            onClick={() => navigate("/uploadbill")}
+                            style={{
+                                backgroundColor: "#6D4AFF",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                padding: "9px 18px",
+                                cursor: "pointer",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px"
+                            }}
+                        >
+                            + Upload New Bill
+                        </button>
+                    </div>
 
                     <div className="ch-stats">
                         <div className="ch-stat-card">
@@ -242,7 +218,7 @@ export default function ConsumptionHistory() {
                                 <Zap size={22} color="#637be1" />
                             </div>
                             <div>
-                                <p className="ch-stat-label">Total Units (2026)</p>
+                                <p className="ch-stat-label">Total Units</p>
                                 <p className="ch-stat-value">{totalUnits.toLocaleString()} KWh</p>
                             </div>
                         </div>
@@ -262,7 +238,7 @@ export default function ConsumptionHistory() {
                             <div>
                                 <p className="ch-stat-label">Peak Month</p>
                                 <p className="ch-stat-value">{peakMonth.month}</p>
-                                <p className="ch-stat-sub">{peakMonth.units} KWh</p>
+                                <p className="ch-stat-sub">{peakMonth.units > 0 ? `${peakMonth.units} KWh` : "—"}</p>
                             </div>
                         </div>
                         <div className="ch-stat-card">
@@ -276,63 +252,110 @@ export default function ConsumptionHistory() {
                         </div>
                     </div>
 
-                    <div className="ch-charts-grid">
-                        <div className="ch-chart-card ch-area">
-                            <h3>Monthly Consumption Trend</h3>
-                            <ResponsiveContainer width="100%" height={280}>
-                                <AreaChart data={consumptionData} margin={{ top: 10, right: 10, left: -5, bottom: 30 }}>
-                                    <defs>
-                                        <linearGradient id="unitGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#6D4AFF" stopOpacity={0.35} />
-                                            <stop offset="95%" stopColor="#6D4AFF" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid vertical={false} stroke="#E5E7EB" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 12 }}
-                                        label={{ value: "Month", position: "insideBottom", offset: -20 }} />
-                                    <YAxis tick={{ fontSize: 12 }}
-                                        label={{ value: "Units (KWh)", angle: -90, position: "insideLeft", offset: 15 }} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Area type="monotone" dataKey="units"
-                                        stroke="#6D4AFF" strokeWidth={3}
-                                        fill="url(#unitGradient)"
-                                        dot={{ r: 5, fill: "#6D4AFF", strokeWidth: 2 }}
-                                        activeDot={{ r: 8 }}
-                                        animationDuration={1200} />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                    {loading ? (
+                        <div style={{ textAlign: "center", padding: "60px 0", color: "#6b7280" }}>
+                            <p>Loading your consumption history...</p>
                         </div>
+                    ) : consumptionData.length === 0 ? (
+                        <div style={{
+                            background: "#ffffff",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "14px",
+                            padding: "48px 24px",
+                            textAlign: "center",
+                            marginTop: "16px"
+                        }}>
+                            <div style={{
+                                width: "64px",
+                                height: "64px",
+                                background: "#eff6ff",
+                                borderRadius: "50%",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                marginBottom: "16px"
+                            }}>
+                                <Zap size={32} color="#2563eb" />
+                            </div>
+                            <h3 style={{ fontSize: "1.2rem", color: "#1f2937", marginBottom: "8px" }}>No Consumption Records Yet</h3>
+                            <p style={{ color: "#6b7280", maxWidth: "460px", margin: "0 auto 24px", fontSize: "14.5px" }}>
+                                Upload your electricity bills to see power consumption trends, seasonal breakdown, and carbon emission analytics for your account ({user?.email}).
+                            </p>
+                            <button
+                                onClick={() => navigate("/uploadbill")}
+                                style={{
+                                    backgroundColor: "#6D4AFF",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "11px 24px",
+                                    cursor: "pointer",
+                                    fontWeight: "600",
+                                    fontSize: "15px"
+                                }}
+                            >
+                                Upload Your First Bill
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="ch-charts-grid">
+                            <div className="ch-chart-card ch-area">
+                                <h3>Monthly Consumption Trend</h3>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <AreaChart data={consumptionData} margin={{ top: 10, right: 10, left: -5, bottom: 30 }}>
+                                        <defs>
+                                            <linearGradient id="unitGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#6D4AFF" stopOpacity={0.35} />
+                                                <stop offset="95%" stopColor="#6D4AFF" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid vertical={false} stroke="#E5E7EB" />
+                                        <XAxis dataKey="month" tick={{ fontSize: 12 }}
+                                            label={{ value: "Month", position: "insideBottom", offset: -20 }} />
+                                        <YAxis tick={{ fontSize: 12 }}
+                                            label={{ value: "Units (KWh)", angle: -90, position: "insideLeft", offset: 15 }} />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Area type="monotone" dataKey="units"
+                                            stroke="#6D4AFF" strokeWidth={3}
+                                            fill="url(#unitGradient)"
+                                            dot={{ r: 5, fill: "#6D4AFF", strokeWidth: 2 }}
+                                            activeDot={{ r: 8 }}
+                                            animationDuration={1200} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
 
-                        <div className="ch-chart-card ch-season">
-                            <h3>Units by Season</h3>
-                            <ResponsiveContainer width="100%" height={280}>
-                                <BarChart data={seasonData} margin={{ top: 10, right: 10, left: -5, bottom: 10 }}>
-                                    <CartesianGrid vertical={false} stroke="#E5E7EB" />
-                                    <XAxis dataKey="season" tick={{ fontSize: 12 }} />
-                                    <YAxis tickFormatter={(v) => `${v}`} tick={{ fontSize: 12 }} />
-                                    <Tooltip content={({ active, payload, label }) => active && payload?.length ? (
-                                        <div className="ch-tooltip">
-                                            <p className="ch-tooltip-label">{label}</p>
-                                            <p className="ch-tooltip-val">{payload[0].value} KWh</p>
+                            <div className="ch-chart-card ch-season">
+                                <h3>Units by Season</h3>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={seasonData} margin={{ top: 10, right: 10, left: -5, bottom: 10 }}>
+                                        <CartesianGrid vertical={false} stroke="#E5E7EB" />
+                                        <XAxis dataKey="season" tick={{ fontSize: 12 }} />
+                                        <YAxis tickFormatter={(v) => `${v}`} tick={{ fontSize: 12 }} />
+                                        <Tooltip content={({ active, payload, label }) => active && payload?.length ? (
+                                            <div className="ch-tooltip">
+                                                <p className="ch-tooltip-label">{label}</p>
+                                                <p className="ch-tooltip-val">{payload[0].value} KWh</p>
+                                            </div>
+                                        ) : null} />
+                                        <Bar dataKey="units" radius={[8, 8, 0, 0]} animationDuration={1200}>
+                                            {seasonData.map((entry, i) => (
+                                                <Cell key={`season-cell-${entry.season || i}`} fill={seasonColors[entry.season] || "#6D4AFF"} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                <div className="ch-legend">
+                                    {Object.entries(seasonColors).map(([s, c]) => (
+                                        <div key={s} className="ch-legend-item">
+                                            <span className="ch-legend-dot" style={{ background: c }} />
+                                            <span>{s}</span>
                                         </div>
-                                    ) : null} />
-                                    <Bar dataKey="units" radius={[8, 8, 0, 0]} animationDuration={1200}>
-                                        {seasonData.map((entry, i) => (
-                                            <Cell key={i} fill={seasonColors[entry.season]} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                            <div className="ch-legend">
-                                {Object.entries(seasonColors).map(([s, c]) => (
-                                    <div key={s} className="ch-legend-item">
-                                        <span className="ch-legend-dot" style={{ background: c }} />
-                                        <span>{s}</span>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </main>
             </div>
         </div>

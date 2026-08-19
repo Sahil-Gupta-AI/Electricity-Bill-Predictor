@@ -31,6 +31,8 @@ export default function Profile() {
 
     function handleLogout() {
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("fallbackHistory");
         navigate("/login");
     }
 

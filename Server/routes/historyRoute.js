@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const Bill = require("../models/Bill");
+const Prediction = require("../models/Prediction");
 const { memoryBills } = require("./extractRoute");
+const { memoryPredictions } = require("./predictRoute");
 
 // GET /api/history/bills - Fetch all extracted bills for the authenticated user
 router.get("/bills", auth, async (req, res) => {
@@ -21,6 +23,27 @@ router.get("/bills", auth, async (req, res) => {
     return res.json(bills || []);
   } catch (error) {
     console.warn("Error fetching bill history:", error.message);
+    return res.json([]);
+  }
+});
+
+// GET /api/history/predictions - Fetch all predictions for the authenticated user
+router.get("/predictions", auth, async (req, res) => {
+  try {
+    let predictions = [];
+    try {
+      predictions = await Prediction.find({ user: req.user.id }).sort({ createdAt: -1 });
+    } catch (dbErr) {
+      console.warn("MongoDB unavailable for predictions history, using in-memory:", dbErr.message);
+    }
+
+    if (!predictions || predictions.length === 0) {
+      predictions = memoryPredictions.filter((p) => p.user === req.user.id);
+    }
+
+    return res.json(predictions || []);
+  } catch (error) {
+    console.warn("Error fetching prediction history:", error.message);
     return res.json([]);
   }
 });
@@ -48,3 +71,4 @@ router.delete("/bills", auth, async (req, res) => {
 });
 
 module.exports = router;
+

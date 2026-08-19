@@ -84,7 +84,7 @@ const parseBillDateToMonthYear = (rawDate) => {
     return rawDate;
 };
 
-export default function home() {
+export default function HomePage() {
 
     const [collapsed, setCollapsed] = useState(window.innerWidth < 1024);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -299,13 +299,26 @@ export default function home() {
     }, [amount, predictAmount, month, nextMonth, historyBills]);
 
     const yTicks = useMemo(() => {
-        if (!chartData.length) return [0, 1000, 2000, 3000];
-        const maxBill = Math.max(...chartData.map(d => d.bill));
-        return [0, 0.25, 0.5, 0.75, 1.0].map(pct => Math.round(maxBill * pct));
+        if (!chartData.length) return [0, 500, 1000, 1500, 2000];
+        const maxVal = Math.max(...chartData.map(d => Number(d.bill) || 0));
+        if (maxVal <= 0) return [0, 500, 1000, 1500, 2000];
+
+        const rawStep = maxVal / 4;
+        const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
+        const normalized = rawStep / magnitude;
+        let stepMultiplier = 1;
+        if (normalized > 5) stepMultiplier = 10;
+        else if (normalized > 2) stepMultiplier = 5;
+        else if (normalized > 1) stepMultiplier = 2;
+        const step = Math.max(100, Math.ceil(stepMultiplier * magnitude));
+
+        return [0, step, step * 2, step * 3, step * 4];
     }, [chartData]);
 
     function handleLogout() {
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("fallbackHistory");
         navigate("/login");
     }
 
@@ -433,8 +446,9 @@ export default function home() {
                                             tick={{ fontSize: 13 }}
                                         />
                                         <YAxis
+                                            domain={[0, yTicks[yTicks.length - 1] || 'auto']}
                                             ticks={yTicks}
-                                            tickFormatter={(v) => v === 0 ? "0" : `${(v / 1000).toFixed(1)}K`}
+                                            tickFormatter={(v) => v === 0 ? "0" : (v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `${v}`)}
                                             label={{ value: "Bill (₹)", angle: -90, position: "insideLeft", offset: 15 }}
                                             tick={{ fontSize: 13 }}
                                         />

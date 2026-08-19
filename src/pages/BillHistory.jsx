@@ -103,11 +103,14 @@ export default function BillHistory() {
                     headers: token ? { "Authorization": `Bearer ${token}` } : {}
                 });
                 const data = await res.json();
-                if (res.ok) {
+                if (res.ok && Array.isArray(data)) {
                     setBills(data);
+                } else {
+                    setBills([]);
                 }
             } catch (err) {
                 console.error("Error fetching history:", err);
+                setBills([]);
             } finally {
                 setLoading(false);
             }
@@ -115,8 +118,7 @@ export default function BillHistory() {
         fetchHistory();
     }, []);
 
-    const isDemo = bills.length === 0;
-    const billData = isDemo ? mockData : bills.map(b => ({
+    const billData = bills.map(b => ({
         month: parseBillDate(b.billDate),
         units: b.units,
         amount: b.amount,
@@ -129,6 +131,7 @@ export default function BillHistory() {
 
     function handleLogout() {
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
         navigate("/login");
     }
 
@@ -158,40 +161,27 @@ export default function BillHistory() {
                 </header>
 
                 <main className="content">
-                    <h2>Bill History</h2>
-
-                    {isDemo && (
-                        <div style={{
-                            background: "#faf8ff",
-                            border: "1.5px dashed #c4b5fd",
-                            borderRadius: "12px",
-                            padding: "16px 20px",
-                            color: "#5b3df5",
-                            marginBottom: "24px",
-                            fontSize: "14.5px",
-                            fontWeight: "500",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                        }}>
-                            <span>Viewing demo data. Upload your first bill to see your actual bill history dashboard!</span>
-                            <button 
-                                onClick={() => navigate("/uploadbill")} 
-                                style={{
-                                    backgroundColor: "#6D4AFF",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    padding: "8px 16px",
-                                    cursor: "pointer",
-                                    fontWeight: "600",
-                                    transition: "all 0.2s"
-                                }}
-                            >
-                                Upload Bill
-                            </button>
-                        </div>
-                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                        <h2 style={{ margin: 0 }}>Bill History</h2>
+                        <button
+                            onClick={() => navigate("/uploadbill")}
+                            style={{
+                                backgroundColor: "#6D4AFF",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                padding: "9px 18px",
+                                cursor: "pointer",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px"
+                            }}
+                        >
+                            + Upload New Bill
+                        </button>
+                    </div>
 
                     <div className="bh-stats">
                         <div className="bh-stat-card">
@@ -199,7 +189,7 @@ export default function BillHistory() {
                                 <IndianRupee size={22} color="#995cf1" />
                             </div>
                             <div>
-                                <p className="bh-stat-label">Total Paid (2026)</p>
+                                <p className="bh-stat-label">Total Paid</p>
                                 <p className="bh-stat-value">₹{totalPaid.toLocaleString()}</p>
                             </div>
                         </div>
@@ -228,61 +218,108 @@ export default function BillHistory() {
                             </div>
                             <div>
                                 <p className="bh-stat-label">Bills Recorded</p>
-                                <p className="bh-stat-value">{billData.length} Months</p>
+                                <p className="bh-stat-value">{billData.length} {billData.length === 1 ? "Month" : "Months"}</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bh-main-grid">
-                        <div className="bh-chart-card">
-                            <h3>Monthly Bill Overview</h3>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={billData} margin={{ top: 10, right: 10, left: -5, bottom: 30 }}>
-                                    <CartesianGrid vertical={false} stroke="#E5E7EB" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 11 }}
-                                        tickFormatter={(v) => v.split(" ")[0]}
-                                        label={{ value: "Month", position: "insideBottom", offset: -20 }} />
-                                    <YAxis tickFormatter={(v) => `${v / 1000}K`} tick={{ fontSize: 12 }} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="amount" radius={[6, 6, 0, 0]} animationDuration={1200}>
-                                        {billData.map((entry, i) => (
-                                            <Cell key={i} fill={entry.amount === highest.amount ? "#6D4AFF" : "#C4B5FD"} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                    {loading ? (
+                        <div style={{ textAlign: "center", padding: "60px 0", color: "#6b7280" }}>
+                            <p>Loading your bill history...</p>
                         </div>
+                    ) : billData.length === 0 ? (
+                        <div style={{
+                            background: "#ffffff",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "14px",
+                            padding: "48px 24px",
+                            textAlign: "center",
+                            marginTop: "16px"
+                        }}>
+                            <div style={{
+                                width: "64px",
+                                height: "64px",
+                                background: "#f5f3ff",
+                                borderRadius: "50%",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                marginBottom: "16px"
+                            }}>
+                                <IndianRupee size={32} color="#6D4AFF" />
+                            </div>
+                            <h3 style={{ fontSize: "1.2rem", color: "#1f2937", marginBottom: "8px" }}>No Bills Uploaded Yet</h3>
+                            <p style={{ color: "#6b7280", maxWidth: "460px", margin: "0 auto 24px", fontSize: "14.5px" }}>
+                                Upload your electricity bill PDF or photo to track your monthly payments, bill trends, and payment records for your account ({user?.email}).
+                            </p>
+                            <button
+                                onClick={() => navigate("/uploadbill")}
+                                style={{
+                                    backgroundColor: "#6D4AFF",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "11px 24px",
+                                    cursor: "pointer",
+                                    fontWeight: "600",
+                                    fontSize: "15px"
+                                }}
+                            >
+                                Upload Your First Bill
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="bh-main-grid">
+                            <div className="bh-chart-card">
+                                <h3>Monthly Bill Overview</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={billData} margin={{ top: 10, right: 10, left: -5, bottom: 30 }}>
+                                        <CartesianGrid vertical={false} stroke="#E5E7EB" />
+                                        <XAxis dataKey="month" tick={{ fontSize: 11 }}
+                                            tickFormatter={(v) => v.split(" ")[0]}
+                                            label={{ value: "Month", position: "insideBottom", offset: -20 }} />
+                                        <YAxis tickFormatter={(v) => `${v / 1000}K`} tick={{ fontSize: 12 }} />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Bar dataKey="amount" radius={[6, 6, 0, 0]} animationDuration={1200}>
+                                            {billData.map((entry, i) => (
+                                                <Cell key={`cell-${entry.month || i}`} fill={entry.amount === highest.amount ? "#6D4AFF" : "#C4B5FD"} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
 
-                        <div className="bh-table-card">
-                            <h3>Bill Details</h3>
-                            <div className="bh-table-wrap">
-                                <table className="bh-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Month</th>
-                                            <th>Units (KWh)</th>
-                                            <th>Amount</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {[...billData].reverse().map((row, i) => (
-                                            <tr key={i}>
-                                                <td>{row.month}</td>
-                                                <td>{row.units}</td>
-                                                <td>₹{row.amount.toLocaleString()}</td>
-                                                <td>
-                                                    <span className={`bh-badge ${row.status === "Paid" ? "paid" : "pending"}`}>
-                                                        {row.status}
-                                                    </span>
-                                                </td>
+                            <div className="bh-table-card">
+                                <h3>Bill Details</h3>
+                                <div className="bh-table-wrap">
+                                    <table className="bh-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Month</th>
+                                                <th>Units (KWh)</th>
+                                                <th>Amount</th>
+                                                <th>Status</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {[...billData].reverse().map((row, i) => (
+                                                <tr key={`row-${row.month || i}`}>
+                                                    <td>{row.month}</td>
+                                                    <td>{row.units}</td>
+                                                    <td>₹{row.amount.toLocaleString()}</td>
+                                                    <td>
+                                                        <span className={`bh-badge ${row.status === "Paid" ? "paid" : "pending"}`}>
+                                                            {row.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </main>
             </div>
         </div>

@@ -331,3 +331,5 @@ router.get("/companies/tariff", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.memoryPredictions = memoryPredictions;
+
