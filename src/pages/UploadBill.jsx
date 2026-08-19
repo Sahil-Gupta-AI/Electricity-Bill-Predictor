@@ -350,6 +350,29 @@ function ExtractedContent({ data: d }) {
         return null;
     }, [d.company?.name]);
 
+    const totalAmountDisplay = useMemo(() => {
+        if (d.summary?.total && d.summary?.total !== "—") return d.summary.total;
+        if (d.usage?.currAmount && d.usage?.currAmount !== "—") return d.usage.currAmount;
+
+        const parseVal = (v) => {
+            if (!v || v === "—") return 0;
+            const match = String(v).match(/[\d,.]+/);
+            if (!match) return 0;
+            return parseFloat(match[0].replace(/,/g, "")) || 0;
+        };
+
+        const sum =
+            parseVal(d.summary?.energy) +
+            parseVal(d.summary?.fixed) +
+            parseVal(d.summary?.fac) +
+            parseVal(d.summary?.wheeling) +
+            parseVal(d.summary?.duty) +
+            parseVal(d.summary?.other);
+
+        if (sum > 0) return `₹${sum.toFixed(2)}`;
+        return "—";
+    }, [d]);
+
     function handleGoToPredict() {
         navigate("/predictbill", { state: { billDetails: d } });
     }
@@ -429,7 +452,7 @@ function ExtractedContent({ data: d }) {
                     border: "1px solid #f3f4f6"
                 }}>
                     <h4 style={{ fontSize: "16px", fontWeight: "600", color: "#111827", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Banknote size={16} color="#6D4AFF" /> Billing &amp; Payment History (Last 6 Months)
+                        <Banknote size={16} color="#6D4AFF" /> Billing &amp; Payment History ({d.history.length} Months)
                     </h4>
                     <p style={{ fontSize: "12.5px", color: "#6b7280", marginBottom: "16px" }}>Extracted historical payments from the bill</p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px" }}>
@@ -484,15 +507,15 @@ function ExtractedContent({ data: d }) {
                 <div className="ub-summary-card">
                     <h4>Bill Summary</h4>
                     <div className="ub-summary-rows">
-                        <div className="ub-summary-row"><span>Energy Charges</span><span>{d.summary?.energy}</span></div>
-                        <div className="ub-summary-row"><span>Fixed Charge</span><span>{d.summary?.fixed}</span></div>
-                        <div className="ub-summary-row"><span>Fuel Adjustment (FAC)</span><span>{d.summary?.fac}</span></div>
-                        <div className="ub-summary-row"><span>Wheeling Charge</span><span>{d.summary?.wheeling}</span></div>
-                        <div className="ub-summary-row"><span>Electricity Duty</span><span>{d.summary?.duty}</span></div>
-                        <div className="ub-summary-row"><span>Other Charges</span><span>{d.summary?.other}</span></div>
+                        <div className="ub-summary-row"><span>Energy Charges</span><span>{d.summary?.energy || "₹0.00"}</span></div>
+                        <div className="ub-summary-row"><span>Fixed Charge</span><span>{d.summary?.fixed || "₹0.00"}</span></div>
+                        <div className="ub-summary-row"><span>Fuel Adjustment (FAC)</span><span>{d.summary?.fac || "₹0.00"}</span></div>
+                        <div className="ub-summary-row"><span>Wheeling Charge</span><span>{d.summary?.wheeling || "₹0.00"}</span></div>
+                        <div className="ub-summary-row"><span>Electricity Duty</span><span>{d.summary?.duty || "₹0.00"}</span></div>
+                        <div className="ub-summary-row"><span>Other Charges</span><span>{d.summary?.other || "₹0.00"}</span></div>
                         <div className="ub-summary-total">
                             <span>Total Amount</span>
-                            <span>{d.summary?.total}</span>
+                            <span>{totalAmountDisplay}</span>
                         </div>
                     </div>
                     {paymentUrl && (
