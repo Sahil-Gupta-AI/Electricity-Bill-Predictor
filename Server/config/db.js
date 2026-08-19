@@ -1,32 +1,24 @@
-const dns = require("dns");
-
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
-
 const mongoose = require("mongoose");
 
-const RETRY_INTERVAL_MS = 5000; // retry every 5 seconds
-
 const connectDB = async () => {
-  while (true) {
-    try {
-      await mongoose.connect(process.env.MONGO_URI, {
-        serverSelectionTimeoutMS: 5000,
-      });
-      console.log("✅ MongoDB Connected");
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (!uri) {
+    console.warn("⚠️ No MONGO_URI provided in environment. Running in-memory mock mode.");
+    return;
+  }
 
-      // Auto-reconnect if connection drops at runtime
-      mongoose.connection.on("disconnected", () => {
-        console.warn("⚠️  MongoDB disconnected. Retrying in 5s...");
-        setTimeout(connectDB, RETRY_INTERVAL_MS);
-      });
+  try {
+    mongoose.set("bufferCommands", false);
+    await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 3000,
+    });
+    console.log("✅ MongoDB Connected successfully");
 
-      break; // exit retry loop on success
-    } catch (error) {
-      console.warn(
-        `❌ MongoDB connection failed: ${error.message}\n   Retrying in ${RETRY_INTERVAL_MS / 1000}s...`
-      );
-      await new Promise((res) => setTimeout(res, RETRY_INTERVAL_MS));
-    }
+    mongoose.connection.on("disconnected", () => {
+      console.warn("⚠️ MongoDB disconnected.");
+    });
+  } catch (error) {
+    console.warn(`⚠️ MongoDB connection skipped (${error.message}). In-memory fallback is active.`);
   }
 };
 

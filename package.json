@@ -4,10 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node server.js",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.5",
@@ -22,6 +23,7 @@
     "lucide-react": "^1.17.0",
     "mongoose": "^9.7.0",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.5",
     "nodemon": "^3.1.14",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

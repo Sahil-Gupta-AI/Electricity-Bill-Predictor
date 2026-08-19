@@ -1,0 +1,6 @@
+{
+  "name": "Electricity Bill Predictor",
+  "description": "An intelligent electricity bill predictor and consumption analyzer for major Indian power distribution companies (Tata Power, MSEDCL, Adani Electricity, Torrent Power, BEST).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

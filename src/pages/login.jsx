@@ -73,7 +73,7 @@ export default function LoginPage() {
           <div className="field">
             <label htmlFor="password">
               Password
-              <a href="#" className="label-link">Forgot password?</a>
+              <Link to="/forgot-password" className="label-link">Forgot password?</Link>
             </label>
             <input
               id="password"

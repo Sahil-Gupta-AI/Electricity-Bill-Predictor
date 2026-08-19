@@ -3,6 +3,7 @@ import LandingPage from "./pages/LandingPage";
 import HomePage from "./pages/home";
 import Login from "./pages/login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
 import PredictBillPage from "./pages/PredictBillPage";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import BillHistory from "./pages/BillHistory";
@@ -19,6 +20,7 @@ function App() {
         <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/predictbill" element={<ProtectedRoute><PredictBillPage /></ProtectedRoute>} />
         <Route path="/billhistory" element={<ProtectedRoute><BillHistory /></ProtectedRoute>} />
         <Route path="/consumptionhistory" element={<ProtectedRoute><ConsumptionHistory /></ProtectedRoute>} />
